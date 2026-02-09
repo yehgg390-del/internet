@@ -3,34 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title></title>
+  <title>Tool</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 30px; background: #0d1117; color: #c9d1d9; }
-    h1 { color: #ff5555; font-size: 28px; }
-    #log { width: 100%; max-width: 960px; height: 480px; border: 1px solid #444; padding: 12px; overflow-y: auto; background: #161b22; font-family: monospace; font-size: 14px; line-height: 1.5; }
-    button { padding: 12px 28px; margin: 10px 10px 10px 0; font-size: 16px; cursor: pointer; background: #21262d; color: #c9d1d9; border: 1px solid #444; }
-    button:hover { background: #30363d; }
-    .warning { color: #ffa500; font-weight: bold; }
-    .ping-high { color: #ff4444; font-weight: bold; }
-    .ping-medium { color: #ffaa00; }
-    .ping-low { color: #44ff44; }
-    input { padding: 10px; font-size: 16px; background: #0d1117; color: #c9d1d9; border: 1px solid #444; width: 200px; }
+    body { font-family: Arial, sans-serif; margin: 40px; background: white; color: black; }
+    h1 { font-size: 24px; margin-bottom: 20px; }
+    #log { width: 100%; max-width: 800px; height: 300px; border: 1px solid #ccc; padding: 10px; overflow-y: auto; background: #f8f8f8; font-family: monospace; font-size: 14px; }
+    button { padding: 10px 20px; margin: 10px 10px 10px 0; font-size: 16px; cursor: pointer; }
   </style>
 </head>
 <body>
 
-  <h1></p>
+  <h1>Tool</h1>
+  <p>Klik untuk mulai (mode sangat menguras).</p>
 
   <div id="password-screen">
     <p>Masukkan password:</p>
-    <input type="password" id="pass">
+    <input type="password" id="pass" style="padding:8px; font-size:16px; width:180px;">
     <button onclick="checkPass()">Masuk</button>
-    <p id="wrong" style="color:#ff5555; display:none;">Password salah</p>
+    <p id="wrong" style="color:red; display:none;">Password salah</p>
   </div>
 
   <div id="main" style="display:none;">
-    <button onclick="start()">MULAI</button>
-    <button onclick="stop()">BERHENTI</button>
+    <button onclick="start()">Mulai</button>
+    <button onclick="stop()">Berhenti</button>
 
     <div id="log">Status...</div>
   </div>
@@ -44,7 +39,7 @@
       if (document.getElementById('pass').value === PASSWORD) {
         document.getElementById('password-screen').style.display = 'none';
         document.getElementById('main').style.display = 'block';
-        log("Akses diberikan. Mode nguras + lag + ping monitor aktif.");
+        log("Password benar. Mode super boros aktif.");
       } else {
         document.getElementById('wrong').style.display = 'block';
         setTimeout(() => document.getElementById('wrong').style.display = 'none', 2000);
@@ -56,142 +51,73 @@
       "https://proof.ovh.net/files/100Gb.dat",
       "https://speed.cloudflare.com/__down?bytes=100000000000",
       "https://speed.cloudflare.com/__down?bytes=200000000000",
-      "https://speedtest.tele2.net/100GB.zip"
+      "https://speed.cloudflare.com/__down?bytes=400000000000",
+      "https://speed.cloudflare.com/__down?bytes=600000000000",
+      "https://speedtest.tele2.net/100GB.zip",
+      "https://speed.ftp.si/100GB.test",
+      "https://speedtest.wtnet.de/files/100gb.bin",
+      "https://lg.fra1.fra1.boson.net/100GB.test",
+      "https://speedtest.ftp.otenet.gr/files/test100Gb.db"
     ];
 
-    const pingTargets = [
-      { name: "Google DNS", url: "https://8.8.8.8/generate_204" },
-      { name: "Cloudflare", url: "https://1.1.1.1" },
-      { name: "Quad9", url: "https://9.9.9.9" },
-      { name: "OpenDNS", url: "https://208.67.222.222" },
-      { name: "YouTube", url: "https://www.youtube.com/generate_204" }
-    ];
-
-    function log(text, className = "") {
+    function log(text) {
       const time = new Date().toLocaleTimeString();
-      const line = `[${time}] ${text}<br>`;
-      const div = document.createElement('div');
-      div.innerHTML = line;
-      if (className) div.className = className;
-      logEl.appendChild(div);
+      logEl.innerHTML += `[${time}] ${text}<br>`;
       logEl.scrollTop = logEl.scrollHeight;
     }
 
-    // ─── Ukur ping ke satu target ───────────────────────────────────────
-    async function measurePing(target) {
-      const start = performance.now();
+    async function consumeData(url) {
       try {
-        await fetch(target.url, {
-          mode: 'no-cors',
+        const cacheBuster = '?t=' + Date.now() + Math.random().toString(36).slice(2,12);
+        const response = await fetch(url + cacheBuster, {
           cache: 'no-store',
+          mode: 'no-cors',
+          referrerPolicy: 'no-referrer',
           keepalive: true
         });
-        const end = performance.now();
-        const ping = Math.round(end - start);
-        let cls = "ping-low";
-        if (ping > 120) cls = "ping-high";
-        else if (ping > 60) cls = "ping-medium";
-        log(`Ping ${target.name}: ${ping} ms`, cls);
-      } catch (e) {
-        log(`Ping ${target.name}: gagal / timeout`, "ping-high");
-      }
-    }
 
-    // ─── Ping monitor berjalan terus selama aktif ───────────────────────
-    async function pingMonitor() {
-      if (!isRunning) return;
-
-      log("--- PING STATUS ---");
-      for (const target of pingTargets) {
-        await measurePing(target);
-        await new Promise(r => setTimeout(r, 300)); // jeda antar ping biar tidak terlalu padat
-      }
-      log("-------------------");
-
-      setTimeout(pingMonitor, 5000); // ulang setiap ~5 detik
-    }
-
-    // ─── Download besar (nguras kuota) ───────────────────────────────────
-    async function consumeBig(url) {
-      try {
-        const cb = `?ts=\( {Date.now()}_ \){Math.random().toString(36).slice(2)}`;
-        const res = await fetch(url + cb, {
-          cache: 'no-store',
-          mode: 'no-cors',
-          keepalive: true,
-          referrerPolicy: 'no-referrer'
-        });
-
-        if (res.body) {
-          const reader = res.body.getReader();
+        // baca body sampai habis biar data beneran ter-download
+        if (response.body) {
+          const reader = response.body.getReader();
           while (true) {
             const { done } = await reader.read();
             if (done) break;
-            await new Promise(r => setTimeout(r, 0));
           }
         }
-      } catch (e) {}
+      } catch {}
     }
 
-    // ─── Spam koneksi kecil (bufferbloat & latency naik) ─────────────────
-    async function spamSmallPackets() {
-      if (!isRunning) return;
-
-      const domain = pingTargets[Math.floor(Math.random() * pingTargets.length)].url.replace("https://", "").split("/")[0];
-      log(`Spam kecil ke → ${domain}`);
-
-      const promises = [];
-      for (let i = 0; i < 10; i++) {
-        promises.push(
-          fetch(`https://\( {domain}/?spam= \){Date.now()}_\( {i}_ \){Math.random().toString(36).slice(2)}`, {
-            mode: 'no-cors',
-            cache: 'no-store',
-            keepalive: true
-          }).catch(() => {})
-        );
-      }
-
-      await Promise.allSettled(promises);
-      setTimeout(spamSmallPackets, 180 + Math.random() * 420);
-    }
-
-    // ─── Worker nguras bandwidth ────────────────────────────────────────
-    async function bandwidthWorker() {
+    async function worker() {
       while (isRunning) {
         const url = bigFiles[Math.floor(Math.random() * bigFiles.length)];
-        log(`Nguras → ${url.split('/').pop() || url}`);
+        log(`Narikin → ${url.split('/').pop() || url}`);
 
-        const tasks = [];
-        for (let i = 0; i < 8; i++) {
-          tasks.push(consumeBig(url));
+        const promises = [];
+        for (let i = 0; i < 18; i++) {          // 18 paralel per worker
+          promises.push(consumeData(url));
         }
 
-        await Promise.allSettled(tasks);
-        await new Promise(r => setTimeout(r, 500 + Math.random() * 1000));
+        await Promise.allSettled(promises);
+
+        // jeda sangat pendek supaya lebih ganas
+        await new Promise(r => setTimeout(r, 80 + Math.random() * 320)); // 80 – 400 ms
       }
     }
 
     function start() {
       if (isRunning) return;
       isRunning = true;
-      log("<span style='color:#ffaa00'>MULAI – NGURAS KUOTA + LATENCY NAIK + PING MONITOR AKTIF</span>");
+      log("MULAI NGURAS KUOTA – MODE SANGAT PARAH");
 
-      // Nguras kuota
-      for (let i = 0; i < 22; i++) {
-        bandwidthWorker();
+      // jumlah worker dinaikkan lagi
+      for (let i = 0; i < 90; i++) {
+        worker();
       }
-
-      // Spam kecil untuk lag
-      spamSmallPackets();
-      spamSmallPackets();
-
-      // Mulai monitor ping
-      pingMonitor();
     }
 
     function stop() {
       isRunning = false;
-      log("Semua dihentikan. Ping monitor juga mati.");
+      log("Berhenti");
     }
 
   </script>
